@@ -1,8 +1,8 @@
 const hre = require("hardhat");
 
 async function main() {
-  const Contract = await hre.ethers.getContractFactory("InfinityKeysAchievement");
-  const contract = await Contract.deploy("InfinityKeysAchievement", "IKA", "0x247fEfEF45134228093Ac6ce41Ee615D327b957E", "magic", "0x3c2269811836af69497E5F486A85D7316753cf62");
+  const Contract = await hre.ethers.getContractFactory("InfinityKeysCreators");
+  const contract = await Contract.deploy("InfinityKeysCreators", "IKC", "", "");
 
   await contract.deployed();
 

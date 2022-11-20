@@ -1,9 +1,9 @@
-# Welcome to Infinity Keys Achievement NFT Smart Contract Repo
+# Welcome to Infinity Keys Creators NFT Smart Contract Repo
 
-Go visit our website to redeem Achievement NFTs! https://infinitykeys.io
+Go visit our website to redeem Creator NFTs! https://infinitykeys.io
 
-This repo contains all of our contracts for our Omni Chain Achievement NFT's.
-The contract is currently deployed on Ethereum, Polygon, Optimism, and Avalanche.
+This repo contains all of our contracts for the NFTs made by creators on the Infinity Keys platforms. Both puzzles and packs are housed within this Creator contract.
+The contract will be Polygon.
 
 Here are some commands to run
 
