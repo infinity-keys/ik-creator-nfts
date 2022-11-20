@@ -9,6 +9,14 @@ import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
 import "./VerifySigner.sol";
 import "./CheckExternalNFT.sol";
 
+// TODO:
+// Add Supply, price in token struct
+// Modify external gate for 1155 compatablity
+// Figure out payment structure - how to pay creators if they are selling
+// Delete release functions for payment spllitter
+// Change claim/claimed -> mint/minted
+// URI @ base url with token ID for modifier
+
 contract InfinityKeysCreators is ERC1155Supply, VerifySigner, CheckExternalNFT {
   using Counters for Counters.Counter;
   Counters.Counter private counter;
