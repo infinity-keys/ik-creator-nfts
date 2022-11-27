@@ -6,28 +6,32 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/IERC721Enumerable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 import "./VerifySigner.sol";
 import "./CheckExternalNFT.sol";
 
 // TODO:
 // Add Supply, price in token struct
-// Modify external gate for 1155 compatablity
 // Figure out payment structure - how to pay creators if they are selling
-// Delete release functions for payment spllitter
-// Change claim/claimed -> mint/minted
-// URI @ base url with token ID for modifier
+// Delete release functions for payment spllitter ?
+// Wallet of owner
+// Wallets who owns an NFT ?
 
 contract InfinityKeysCreators is ERC1155Supply, VerifySigner, CheckExternalNFT {
+  using Strings for uint256;
   using Counters for Counters.Counter;
   Counters.Counter private counter;
 
   string public name;
   string public symbol;
 
+  string public baseURI = "www.infinitykeys.io/api/metadata/";
+  string public suffixURI = "";
+
   mapping(uint256 => Token) private tokens;
 
   /** 
-    @dev for token gating claims.
+    @dev for token gating mints.
     */
   enum GateState {
     noGate,
@@ -36,15 +40,16 @@ contract InfinityKeysCreators is ERC1155Supply, VerifySigner, CheckExternalNFT {
   }
 
   struct Token {
-    bool claimable;
+    bool mintable;
     GateState gate;
     uint256[] internalGateIDs;
     address externalGateContract;
-    string tokenURI;
-    mapping(address => bool) claimed;
+    bool external721;
+    uint256 externalTokenID;
+    mapping(address => bool) minted;
   }
 
-  event Claimed(uint256 indexed _tokenID, address indexed _account);
+  event Minted(uint256 indexed _tokenID, address indexed _account);
 
   constructor(
     string memory _name,
@@ -79,16 +84,20 @@ contract InfinityKeysCreators is ERC1155Supply, VerifySigner, CheckExternalNFT {
       GateState,
       uint256[] memory,
       address,
-      string memory
+      bool,
+      uint256
     )
   {
     require(exists(_tokenID), "getToken: Token ID does not exist");
+    Token storage t = tokens[_tokenID];
+
     return (
-      tokens[_tokenID].claimable,
-      tokens[_tokenID].gate,
-      tokens[_tokenID].internalGateIDs,
-      tokens[_tokenID].externalGateContract,
-      tokens[_tokenID].tokenURI
+      t.mintable,
+      t.gate,
+      t.internalGateIDs,
+      t.externalGateContract,
+      t.external721,
+      t.externalTokenID
     );
   }
 
@@ -96,18 +105,21 @@ contract InfinityKeysCreators is ERC1155Supply, VerifySigner, CheckExternalNFT {
     @dev Adds a new token.
     */
   function addToken(
-    bool _claimable,
+    bool _mintable,
     GateState _gateState,
     uint256[] memory _internalGateIDs,
     address _externalGateContract,
-    string memory _tokenURI
+    bool _external721,
+    uint256 _externalTokenID
   ) public onlyAuthorized {
     Token storage t = tokens[counter.current()];
-    t.claimable = _claimable;
+
+    t.mintable = _mintable;
     t.gate = _gateState;
     t.internalGateIDs = _internalGateIDs;
     t.externalGateContract = _externalGateContract;
-    t.tokenURI = _tokenURI;
+    t.external721 = _external721;
+    t.externalTokenID = _externalTokenID;
 
     counter.increment();
   }
@@ -115,16 +127,14 @@ contract InfinityKeysCreators is ERC1155Supply, VerifySigner, CheckExternalNFT {
   /**
     @dev Add token caller for default states on gate IDs.
     */
-  function addTokenUngated(bool _claimable, string memory _tokenURI)
-    public
-    onlyAuthorized
-  {
+  function addTokenUngated(bool _mintable) public onlyAuthorized {
     addToken(
-      _claimable,
+      _mintable,
       GateState.noGate,
       new uint256[](0),
       address(0),
-      _tokenURI
+      false,
+      0
     );
   }
 
@@ -133,44 +143,45 @@ contract InfinityKeysCreators is ERC1155Supply, VerifySigner, CheckExternalNFT {
     */
   function editToken(
     uint256 _tokenID,
-    bool _claimable,
+    bool _mintable,
     GateState _gateState,
     uint256[] memory _internalGateIDs,
     address _externalGateContract,
-    string memory _tokenURI
+    bool _external721,
+    uint256 _externalTokenID
   ) external onlyAuthorized {
     require(exists(_tokenID), "EditToken: Token ID does not exist");
 
     Token storage t = tokens[_tokenID];
-    t.claimable = _claimable;
+    t.mintable = _mintable;
     t.gate = _gateState;
     t.internalGateIDs = _internalGateIDs;
     t.externalGateContract = _externalGateContract;
-    t.tokenURI = _tokenURI;
+    t.external721 = _external721;
+    t.externalTokenID = _externalTokenID;
   }
 
   /**
-    @dev Edits token uri.
+    @dev Sets base token uri.
      */
-  function editTokenURI(uint256 _tokenID, string memory _tokenURI)
+  function setBaseURI(string memory _newBaseURI, string memory _newSuffixURI)
     external
-    onlyAuthorized
+    onlyOwner
   {
-    require(exists(_tokenID), "EditTokenURI: Token ID does not exist");
-    Token storage t = tokens[_tokenID];
-    t.tokenURI = _tokenURI;
+    baseURI = _newBaseURI;
+    suffixURI = _newSuffixURI;
   }
 
   /**
-    @dev Sets token claim state.
+    @dev Sets token mint state.
      */
-  function setTokenClaimable(uint256 _tokenID, bool _claimable)
+  function setTokenMintable(uint256 _tokenID, bool _mintable)
     external
     onlyAuthorized
   {
-    require(exists(_tokenID), "setTokenClaimable: Token ID does not exist");
+    require(exists(_tokenID), "setTokenMintable: Token ID does not exist");
     Token storage t = tokens[_tokenID];
-    t.claimable = _claimable;
+    t.mintable = _mintable;
   }
 
   /**
@@ -183,46 +194,46 @@ contract InfinityKeysCreators is ERC1155Supply, VerifySigner, CheckExternalNFT {
   }
 
   /**
-    @dev Handle token claims.
+    @dev Handle token mints.
     */
-  function claim(uint256 _tokenID, bytes memory _signature) external payable {
-    require(exists(_tokenID), "claim: token does not exist");
-    require(isSaleOpen(_tokenID), "claim: sale is closed");
+  function mint(uint256 _tokenID, bytes memory _signature) external payable {
+    require(exists(_tokenID), "mint: token does not exist");
+    require(isSaleOpen(_tokenID), "mint: sale is closed");
     require(
-      !checkIfClaimed(_tokenID, msg.sender),
-      "claim: NFT already claimed by address"
+      !checkIfMinted(_tokenID, msg.sender),
+      "mint: NFT already minted by address"
     );
-    require(verify(_tokenID, _signature), "claim: Server Verification Failed.");
+    require(verify(_tokenID, _signature), "mint: Server Verification Failed.");
     require(
       gateCheck(_tokenID, msg.sender),
-      "claim: Address does not own requisite NFT"
+      "mint: Address does not own requisite NFT"
     );
 
-    tokens[_tokenID].claimed[msg.sender] = true;
+    tokens[_tokenID].minted[msg.sender] = true;
 
     _mint(msg.sender, _tokenID, 1, "");
 
-    emit Claimed(_tokenID, msg.sender);
+    emit Minted(_tokenID, msg.sender);
   }
 
   /**
-    @dev Return whether claims are open for a certain tokenID.
+    @dev Return whether mints are open for a certain tokenID.
     */
   function isSaleOpen(uint256 _tokenID) public view returns (bool) {
     require(exists(_tokenID), "isSaleClosed: token does not exist");
-    return tokens[_tokenID].claimable;
+    return tokens[_tokenID].mintable;
   }
 
   /**
-    @dev Check if specified address has claimed specified tokenID.
+    @dev Check if specified address has minted specified tokenID.
     */
-  function checkIfClaimed(uint256 _tokenID, address _address)
+  function checkIfMinted(uint256 _tokenID, address _address)
     public
     view
     returns (bool)
   {
-    require(exists(_tokenID), "checkIfClaimed: token does not exist");
-    if (tokens[_tokenID].claimed[_address]) return true;
+    require(exists(_tokenID), "checkIfMinted: token does not exist");
+    if (tokens[_tokenID].minted[_address]) return true;
     return false;
   }
 
@@ -240,7 +251,7 @@ contract InfinityKeysCreators is ERC1155Supply, VerifySigner, CheckExternalNFT {
   }
 
   /**
-    @dev Check if msg.sender can claim NFT based on:
+    @dev Check if msg.sender can mint NFT based on:
     * An Internal Gate (must own another token on this contract)
     * An External Gate (must own a partner NFT)
     */
@@ -256,7 +267,13 @@ contract InfinityKeysCreators is ERC1155Supply, VerifySigner, CheckExternalNFT {
     } else if (gate == GateState.internalGate) {
       return checkInternalNFTs(_address, tokens[_tokenID].internalGateIDs);
     } else if (gate == GateState.externalGate) {
-      return checkExternalNFT(_address, tokens[_tokenID].externalGateContract);
+      return
+        checkExternalNFT(
+          _address,
+          tokens[_tokenID].externalGateContract,
+          tokens[_tokenID].external721,
+          tokens[_tokenID].externalTokenID
+        );
     }
     return false;
   }
@@ -289,7 +306,7 @@ contract InfinityKeysCreators is ERC1155Supply, VerifySigner, CheckExternalNFT {
     */
   function uri(uint256 _tokenID) public view override returns (string memory) {
     require(exists(_tokenID), "URI: nonexistent token");
-    return tokens[_tokenID].tokenURI;
+    return string(abi.encodePacked(baseURI, _tokenID.toString(), suffixURI));
   }
 
   /**
