@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 // Infinity Keys 2022
-pragma solidity 0.8.17;
+pragma solidity ^0.8.16;
 
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/IERC721Enumerable.sol";

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // 2022 Infinity Keys Team
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.16;
 
 /*************************************************************
  * @title: Verify Signer                                      *

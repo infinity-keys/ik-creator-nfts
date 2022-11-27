@@ -2,7 +2,12 @@ const hre = require("hardhat");
 
 async function main() {
   const Contract = await hre.ethers.getContractFactory("InfinityKeysCreators");
-  const contract = await Contract.deploy("InfinityKeysCreators", "IKC", "", "");
+  const contract = await Contract.deploy(
+    "InfinityKeysCreators",
+    "IKC",
+    "0x71665B951a9EB87c8e6A8EF29a266fA578a78654",
+    "test"
+  );
 
   await contract.deployed();
 
