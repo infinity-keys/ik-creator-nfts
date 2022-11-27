@@ -14,7 +14,6 @@ import "./CheckExternalNFT.sol";
 // Add Supply, price in token struct
 // Figure out payment structure - how to pay creators if they are selling
 // Delete release functions for payment spllitter ?
-// Wallet of owner
 // Wallets who owns an NFT ?
 
 contract InfinityKeysCreators is ERC1155Supply, VerifySigner, CheckExternalNFT {
@@ -149,7 +148,7 @@ contract InfinityKeysCreators is ERC1155Supply, VerifySigner, CheckExternalNFT {
     address _externalGateContract,
     bool _external721,
     uint256 _externalTokenID
-  ) external onlyAuthorized {
+  ) external onlyOwner {
     require(exists(_tokenID), "EditToken: Token ID does not exist");
 
     Token storage t = tokens[_tokenID];
@@ -307,6 +306,23 @@ contract InfinityKeysCreators is ERC1155Supply, VerifySigner, CheckExternalNFT {
   function uri(uint256 _tokenID) public view override returns (string memory) {
     require(exists(_tokenID), "URI: nonexistent token");
     return string(abi.encodePacked(baseURI, _tokenID.toString(), suffixURI));
+  }
+
+  /**
+    @dev Return array of balences of given wallet address.
+    */
+  function walletOfOwner(address _address)
+    external
+    view
+    returns (uint256[] memory)
+  {
+    uint256[] memory result = new uint256[](counter.current());
+
+    for (uint256 i; i < counter.current(); i++) {
+      result[i] = balanceOf(_address, i);
+    }
+
+    return result;
   }
 
   /**
